@@ -40,7 +40,7 @@ def get_telegram_id_db(phone_number: str):
         return None
 
 
-@app.route('/send-pdf/', methods=['POST'])
+@app.route('/dock/', methods=['POST'])
 def send_pdf():
     data = request.get_json()
     pdf_url = data.get("pdf_url")

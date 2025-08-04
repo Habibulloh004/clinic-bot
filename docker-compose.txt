@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: uzlabs_postgres
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-uzlabs_bot}
+      POSTGRES_USER: ${DATABASE_USER:-postgres}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    networks:
+      - uzlabs_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-postgres} -d ${DATABASE_NAME:-uzlabs_bot}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for FSM storage
+  redis:
+    image: redis:7-alpine
+    container_name: uzlabs_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - uzlabs_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Telegram Bot
+  bot:
+    build: .
+    container_name: uzlabs_bot
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - UZLABS_SERVICES_URL=${UZLABS_SERVICES_URL}
+      - UZLABS_TOKEN=${UZLABS_TOKEN}
+      - DATABASE_NAME=${DATABASE_NAME:-uzlabs_bot}
+      - DATABASE_USER=${DATABASE_USER:-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-password}
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+      - DEBUG=${DEBUG:-False}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - uzlabs_network
+    restart: unless-stopped
+    command: python main.py
+
+  # Flask PDF Service
+  pdf_service:
+    build: .
+    container_name: uzlabs_pdf_service
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - DATABASE_NAME=${DATABASE_NAME:-uzlabs_bot}
+      - DATABASE_USER=${DATABASE_USER:-postgres}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-password}
+      - DATABASE_HOST=postgres
+      - DATABASE_PORT=5432
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - uzlabs_network
+    restart: unless-stopped
+    command: python service.py
+
+  # Nginx (optional - for production)
+  nginx:
+    image: nginx:alpine
+    container_name: uzlabs_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - pdf_service
+    networks:
+      - uzlabs_network
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  uzlabs_network:
+    driver: bridge

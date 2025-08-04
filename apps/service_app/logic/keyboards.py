@@ -62,7 +62,7 @@ def clinics_keyboard(clinics, page: int = 0, per_page: int = 5, lang: str = 'ru'
     for clinic in current_clinics:
         button = InlineKeyboardButton(
             text=clinic["ClinicName"],
-            callback_data=f"clinic_{clinic['ClinicId']}_{clinic["ClinicName"]}"
+            callback_data=f"clinic_{clinic['ClinicId']}_{clinic['ClinicName']}"
             # callback_data=f"clinic_{clinic['ClinicId']}"
         )
         # Each button in a separate row. Can be grouped in pairs if needed.

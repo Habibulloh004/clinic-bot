@@ -15,7 +15,7 @@ click==8.1.8
 fastapi==0.115.12
 Flask==3.1.1
 frozenlist==1.5.0
-h11==0.14.0
+h11==0.16.0                # ⬅️ versiya moslashtirildi
 httpcore==1.0.9
 httpx==0.28.1
 idna==3.10
@@ -24,7 +24,7 @@ Jinja2==3.1.6
 magic-filter==1.0.12
 MarkupSafe==3.0.2
 multidict==6.2.0
-pillow==11.2.0
+pillow==11.3.0
 propcache==0.3.0
 psycopg2-binary==2.9.10
 pydantic==2.10.6

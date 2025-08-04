@@ -1,0 +1,92 @@
+services:
+  uzlabs_postgres:
+    image: postgres:15-alpine
+    container_name: uzlabs_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: uzlabs
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: front_dev1
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - uzlabs_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d uzlabs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  uzlabs_redis:
+    image: redis:7-alpine
+    container_name: uzlabs_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - uzlabs_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  uzlabs_pdf_service:
+    build: 
+      context: .
+      dockerfile: Dockerfile.pdf_service
+    container_name: uzlabs_pdf_service
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - BOT_TOKEN=7424582099:AAFBn74y3vZm680TjtuRnm4lcIWPJNDUsyA
+      - DATABASE_HOST=uzlabs_postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=uzlabs
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=front_dev1
+    depends_on:
+      uzlabs_postgres:
+        condition: service_healthy
+    networks:
+      - uzlabs_network
+
+  uzlabs_bot:
+    build: 
+      context: .
+      dockerfile: Dockerfile.bot
+    container_name: uzlabs_bot
+    restart: unless-stopped
+    environment:
+      - BOT_TOKEN=7424582099:AAFBn74y3vZm680TjtuRnm4lcIWPJNDUsyA
+      - UZLABS_SERVICES_URL=http://localhost:3001/client/backend/api/
+      - UZLABS_TOKEN=392120823d62f9a013279418289679f8d6a6cbbf75a6674a2f7c635ce41a964e72a0514c4672b350f1336a7a6cac4376338a92f829c1eab0a1e7d97267c7f1a22e48be3130deefe6a758fe36b30a931e57e7fafa2bc83d13b9f5089ac724944a76644ea4b22c058aac4d1f04cfbfb69766d9aa8bd8126cc19691c0ecc1cfd571a626e12797318362f5585ddccb0ca5148397a06d8706a6dabd9a8cf8b182fe5ff0a37326eb6d910add9df5968d362bfd02b79925d206f732d5d4937ac12a463a3188bdabbcc50c4721f9b3f2c2b480f60abd24f40fb35cdc427a2a2c0fb74b788cc23a43033f25bc5f1368182bd0bff5f1e35177e23edfe2f007be0983d70bd2
+      - DATABASE_HOST=uzlabs_postgres
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=uzlabs
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=front_dev1
+      - DEBUG=False
+    depends_on:
+      uzlabs_postgres:
+        condition: service_healthy
+      uzlabs_redis:
+        condition: service_healthy
+    networks:
+      - uzlabs_network
+    # Ensure only one instance runs
+    deploy:
+      replicas: 1
+
+networks:
+  uzlabs_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
